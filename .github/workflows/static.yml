@@ -1,0 +1,49 @@
+name: Deploy static content to Pages
+
+#En donde quiero que se ejecute esta accion o flujo de trabajo
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+#Permisos de lectura del contenido, escribir el token para despliegue y escribir en pages.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+#Evita que si se hace un push de dos personas al tiempo se hace una espera para el 
+#despliegue del uno y luego de la otra persona.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest #so
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar GitHub Pages
+        uses: actions/configure-pages@v5
+
+#Esta es una opcion personalizada saca una fecha de manera dinamica con este formato e 
+#imprime un json con el mensaje y la fecha y lo guarda en data.json
+      - name: Generar JSON dinámico en la raíz
+        run: |
+          FECHA=$(date +"%Y-%m-%d %H:%M:%S")
+          echo '{ "message": "Mensaje generado con GitHub Actions el '"$FECHA"'", "fecha": "'"$FECHA"'" }' > data.json
+          ls -la
+
+      - name: Subir archivos
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'  # Subir TODO el contenido de la raíz
+
+      - name: Desplegar en GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
