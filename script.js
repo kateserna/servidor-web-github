@@ -4,7 +4,7 @@ async function obtenerMensaje() {
         const datos = await respuesta.json();
         document.getElementById('mensaje').innerText = datos.message;
     } catch (error) {
-        console.error('Error cargando el mensaje:', error);
+        console.error('Error cargando el mensaje a:', error);
     }
 }
 
