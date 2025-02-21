@@ -1,49 +1,54 @@
-name: Deploy static content to Pages
+name: Deploy Dynamic JSON for Load Balancing
 
-#En donde quiero que se ejecute esta accion o flujo de trabajo
 on:
   push:
-    branches: ["main"]
+    branches:
+      - main
   workflow_dispatch:
 
-#Permisos de lectura del contenido, escribir el token para despliegue y escribir en pages.
 permissions:
-  contents: read
+  contents: write
   pages: write
   id-token: write
 
-#Evita que si se hace un push de dos personas al tiempo se hace una espera para el 
-#despliegue del uno y luego de la otra persona.
-concurrency:
-  group: "pages"
-  cancel-in-progress: false
-
+#Desde los worflows podemos acceder al codigo en github
 jobs:
-  deploy:
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: ubuntu-latest #so
-    steps:
-      - name: Checkout del repositorio
-        uses: actions/checkout@v4
-
-      - name: Configurar GitHub Pages
-        uses: actions/configure-pages@v5
-
-#Esta es una opcion personalizada saca una fecha de manera dinamica con este formato e 
-#imprime un json con el mensaje y la fecha y lo guarda en data.json
-      - name: Generar JSON dinámico en la raíz
+  update-json:
+    runs-on: ubuntu-latest
+    steps: 
+      - name: Checkout code
+        uses: actions/checkout@v4 #llama el action de checkout
+        with:
+          persist-credentials: true
+        #Genera un archivo de forma dinamica data1 .json para simular el servidor 1
+      - name: Generate dynamic JSON for Server 1
         run: |
           FECHA=$(date +"%Y-%m-%d %H:%M:%S")
-          echo '{ "message": "Mensaje generado con GitHub Actions el '"$FECHA"'", "fecha": "'"$FECHA"'" }' > data.json
-          ls -la
+          echo '{ "message": "Respuesta desde Servidor 1", "server": "Servidor 1", "timestamp": "'"$FECHA"'" }' > data1.json
+          cat data1.json
+        #Genera un archivo de forma dinamica data2.json para simular el servidor 2
+      - name: Generate dynamic JSON for Server 2
+        run: |
+          FECHA=$(date +"%Y-%m-%d %H:%M:%S")
+          echo '{ "message": "Respuesta desde Servidor 2", "server": "Servidor 2", "timestamp": "'"$FECHA"'" }' > data2.json
+          cat data2.json
+        #permite agregar al repositorio archivos como los datas.json usando comandos de git en el pipeline
+        #se usa el usuario de git de actions no se modifica no se coloca el usuario personal de github.
+      - name: Commit and push JSON files
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          git add data1.json data2.json
+          git commit -m "Actualizar archivos JSON dinámicos"
+          git push origin main
 
-      - name: Subir archivos
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+        #pasos para subir todos los archivos
+      - name: Upload Pages Artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.'  # Subir TODO el contenido de la raíz
-
-      - name: Desplegar en GitHub Pages
-        id: deployment
+          path: '.'  # Subir todo el contenido de la raíz
+        #pasos para hacer el deploy
+      - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v4
